@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { BrowserRouter } from 'react-router-dom'
 import TiltCard from './components/TiltCard'
 import DashboardShell from './components/DashboardShell'
 import { supabase } from './lib/supabase'
@@ -155,7 +156,9 @@ export default function App() {
           Sign out
         </button>
       </div>
-      <DashboardShell />
+      <BrowserRouter>
+        <DashboardShell />
+      </BrowserRouter>
     </main>
   );
 }
