@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import type { Tab } from '../lib/types';
+import Overview from './Overview';
+import Properties from './Properties';
+import Units from './Units';
+import Payments from './Payments';
 
 const tabs: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -29,9 +33,10 @@ export default function DashboardShell({ initialTab = 'overview' }: { initialTab
         </nav>
       </aside>
       <section className="flex-1 p-6">
-        <div data-testid={`tab-${tab}`} className="text-sm text-slate-400">
-          {tab}
-        </div>
+        {tab === 'overview' && <Overview />}
+        {tab === 'properties' && <Properties />}
+        {tab === 'units' && <Units />}
+        {tab === 'payments' && <Payments />}
       </section>
     </div>
   );
