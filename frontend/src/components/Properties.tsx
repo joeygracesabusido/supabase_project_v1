@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useProperties, useUnits } from '../lib/useDashboard';
 import type { Property } from '../lib/types';
@@ -222,9 +223,11 @@ export default function Properties() {
             <article key={p.id} className="flex flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] shadow-[var(--shadow-sm)] transition-shadow hover:shadow-[var(--shadow-md)]">
               <div aria-hidden className={`h-2 ${accents[i % accents.length].bar}`} />
               <div className="flex flex-1 flex-col p-5">
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">{p.name}</h2>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">{p.address}</p>
-              {locality(p) && <p className="text-sm text-[var(--text-muted)]">{locality(p)}</p>}
+              <Link to={`/units?property=${p.id}&add=1`} title={`Add units to ${p.name}`} className="rounded-lg outline-none transition hover:brightness-95 focus-visible:ring-2 focus-visible:ring-indigo-400">
+                <h2 className="text-base font-semibold text-[var(--text-primary)]">{p.name}</h2>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">{p.address}</p>
+                {locality(p) && <p className="text-sm text-[var(--text-muted)]">{locality(p)}</p>}
+              </Link>
               {p.building_type && (
                 <span className="mt-2 w-fit rounded-full bg-[var(--bg-badge)] px-2.5 py-0.5 text-xs font-medium capitalize text-[var(--text-secondary)]">
                   {p.building_type}

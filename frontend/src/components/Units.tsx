@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useUnits, useProperties } from '../lib/useDashboard';
 import type { Unit } from '../lib/types';
@@ -11,7 +12,9 @@ const numOrNull = (v: string) => (v.trim() === '' ? null : Number(v));
 export default function Units() {
   const { data, loading, error, reload } = useUnits();
   const props = useProperties();
-  const [filter, setFilter] = useState('');
+  const [searchParams] = useSearchParams();
+  const initialProperty = searchParams.get('property') ?? '';
+  const [filter, setFilter] = useState(initialProperty);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Unit | null>(null);
   const [propertyId, setPropertyId] = useState('');
@@ -39,6 +42,20 @@ export default function Units() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [showModal]);
+
+  // Deep link from a property card (?property=<id>&add=1): preset the
+  // property and open the Add modal once its data has loaded.
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (autoOpened.current || props.loading || showModal) return;
+    if (searchParams.get('add') === '1' && initialProperty && props.data.some((p) => p.id === initialProperty)) {
+      autoOpened.current = true;
+      setPropertyId(initialProperty);
+      setEditing(null);
+      setFormError('');
+      setShowModal(true);
+    }
+  }, [props.loading, props.data, searchParams, initialProperty, showModal]);
 
   if (loading || props.loading) return <p className="text-[var(--text-secondary)]">Loading units…</p>;
   if (error || props.error)
