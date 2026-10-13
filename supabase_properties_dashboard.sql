@@ -5,6 +5,18 @@ create table if not exists properties (
   created_at timestamptz default now()
 );
 
+-- Full property model (mirrors el-property Prisma `properties` minus
+-- system-managed latitude/longitude/active). IF NOT EXISTS so re-running
+-- upgrades databases created before these columns existed.
+alter table properties add column if not exists city text;
+alter table properties add column if not exists state text;
+alter table properties add column if not exists zip text;
+alter table properties add column if not exists total_units integer default 0;
+alter table properties add column if not exists asset_category text;
+alter table properties add column if not exists description text;
+alter table properties add column if not exists building_type text;
+alter table properties add column if not exists year_built integer;
+
 create table if not exists tenants (
   id uuid primary key default gen_random_uuid(),
   full_name text not null,

@@ -1,4 +1,16 @@
-export type Property = { id: string; name: string; address: string };
+export type Property = {
+  id: string;
+  name: string;
+  address: string;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  total_units?: number | null;
+  asset_category?: string | null;
+  description?: string | null;
+  building_type?: string | null;
+  year_built?: number | null;
+};
 export type Unit = {
   id: string;
   property_id: string;
