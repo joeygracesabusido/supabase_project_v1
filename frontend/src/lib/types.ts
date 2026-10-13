@@ -17,6 +17,15 @@ export type Unit = {
   unit_number: string;
   rent: number;
   status: 'vacant' | 'occupied';
+  floor_area?: number | null;
+  floor_number?: number | null;
+  bedroom_count?: number | null;
+  bathroom_count?: number | null;
+  unit_type?: string | null;
+  phase?: string | null;
+  block?: string | null;
+  lot?: string | null;
+  description?: string | null;
 };
 export type Tenant = { id: string; full_name: string; email: string | null; unit_id: string | null };
 export type Payment = {
