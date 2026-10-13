@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { useProperties, useUnits } from '../lib/useDashboard';
+import type { Property } from '../lib/types';
 
 const BUILDING_TYPES = ['residential', 'commercial', 'mixed', 'industrial', 'condominium', 'townhouse'];
 const thisYear = new Date().getFullYear();
@@ -11,6 +12,7 @@ export default function Properties() {
   const { data, loading, error, reload } = useProperties();
   const units = useUnits();
   const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<Property | null>(null);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
@@ -41,17 +43,52 @@ export default function Properties() {
       </p>
     );
 
+  const resetFields = () => {
+    setName('');
+    setAddress('');
+    setCity('');
+    setState('');
+    setZip('');
+    setTotalUnits('');
+    setBuildingType('');
+    setYearBuilt('');
+    setAssetCategory('');
+    setDescription('');
+  };
+
+  const openAdd = () => {
+    resetFields();
+    setEditing(null);
+    setFormError('');
+    setShowModal(true);
+  };
+
+  const openEdit = (p: Property) => {
+    setName(p.name);
+    setAddress(p.address);
+    setCity(p.city ?? '');
+    setState(p.state ?? '');
+    setZip(p.zip ?? '');
+    setTotalUnits(p.total_units != null ? String(p.total_units) : '');
+    setBuildingType(p.building_type ?? '');
+    setYearBuilt(p.year_built != null ? String(p.year_built) : '');
+    setAssetCategory(p.asset_category ?? '');
+    setDescription(p.description ?? '');
+    setEditing(p);
+    setFormError('');
+    setShowModal(true);
+  };
   const yearNum = yearBuilt.trim() === '' ? null : Number(yearBuilt);
-  const yearValid = yearNum === null || (Number.isInteger(yearNum) && yearNum >= 1800 && yearNum <= thisYear);
   const unitsNum = totalUnits.trim() === '' ? null : Number(totalUnits);
+  const yearValid = yearNum === null || (Number.isInteger(yearNum) && yearNum >= 1800 && yearNum <= thisYear);
   const unitsValid = unitsNum === null || (!Number.isNaN(unitsNum) && unitsNum >= 0);
 
-  const onAdd = async (e: FormEvent) => {
+  const onSave = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !address.trim() || !yearValid || !unitsValid || saving) return;
     setSaving(true);
     setFormError('');
-    const { error: err } = await supabase.from('properties').insert({
+    const payload = {
       name: name.trim(),
       address: address.trim(),
       city: city.trim() || null,
@@ -62,19 +99,14 @@ export default function Properties() {
       year_built: yearNum,
       asset_category: assetCategory.trim() || null,
       description: description.trim() || null,
-    });
+    };
+    const { error: err } = editing
+      ? await supabase.from('properties').update(payload).eq('id', editing.id)
+      : await supabase.from('properties').insert(payload);
     if (err) setFormError(err.message);
     else {
-      setName('');
-      setAddress('');
-      setCity('');
-      setState('');
-      setZip('');
-      setTotalUnits('');
-      setBuildingType('');
-      setYearBuilt('');
-      setAssetCategory('');
-      setDescription('');
+      resetFields();
+      setEditing(null);
       setShowModal(false);
       reload();
     }
@@ -105,15 +137,15 @@ export default function Properties() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <button onClick={() => { setFormError(''); setShowModal(true); }} className="rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:brightness-110">
+        <button onClick={openAdd} className="rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:brightness-110">
           Add Property
         </button>
       </div>
       {showModal && (
         <div onClick={() => setShowModal(false)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div role="dialog" aria-modal="true" aria-label="Add property" onClick={(e) => e.stopPropagation()} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 shadow-[var(--shadow-lg)]">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Add Property</h2>
-            <form onSubmit={onAdd} className="mt-4 space-y-3">
+          <div role="dialog" aria-modal="true" aria-label={editing ? 'Edit property' : 'Add property'} onClick={(e) => e.stopPropagation()} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 shadow-[var(--shadow-lg)]">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">{editing ? 'Edit Property' : 'Add Property'}</h2>
+            <form onSubmit={onSave} className="mt-4 space-y-3">
               <label className="block text-sm font-medium text-[var(--text-secondary)]">
                 Property Name *
                 <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Sunrise Residences" aria-label="Property name" className={inputCls} />
@@ -175,7 +207,7 @@ export default function Properties() {
                   Cancel
                 </button>
                 <button disabled={!name.trim() || !address.trim() || !yearValid || !unitsValid || saving} className="rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-                  {saving ? 'Saving…' : 'Add'}
+                  {saving ? 'Saving…' : editing ? 'Save' : 'Add'}
                 </button>
               </div>
             </form>
@@ -202,9 +234,16 @@ export default function Properties() {
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${accents[i % accents.length].badge}`}>
                   {unitCount(p.id)} {unitCount(p.id) === 1 ? 'unit' : 'units'}
                 </span>
-                <button onClick={() => onDelete(p.id)} className="rounded-lg border border-[var(--border-color)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]">
-                  Delete
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => openEdit(p)} aria-label={`Edit ${p.name}`} title="Edit" className="rounded-lg border border-[var(--border-color)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                    </svg>
+                  </button>
+                  <button onClick={() => onDelete(p.id)} className="rounded-lg border border-[var(--border-color)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]">
+                    Delete
+                  </button>
+                </div>
               </div>
               </div>
             </article>
