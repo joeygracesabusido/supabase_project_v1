@@ -27,7 +27,14 @@ export type Unit = {
   lot?: string | null;
   description?: string | null;
 };
-export type Tenant = { id: string; full_name: string; email: string | null; unit_id: string | null };
+export type Tenant = {
+  id: string;
+  full_name: string;
+  email: string | null;
+  unit_id: string | null;
+  lease_start?: string | null;
+  lease_end?: string | null;
+};
 export type Payment = {
   id: string;
   tenant_id: string;
@@ -37,4 +44,4 @@ export type Payment = {
   for_month: string;
   paid_on: string;
 };
-export type Tab = 'overview' | 'properties' | 'units' | 'payments';
+export type Tab = 'overview' | 'properties' | 'units' | 'tenants' | 'payments';

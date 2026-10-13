@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useUnits, useProperties } from '../lib/useDashboard';
 import type { Unit } from '../lib/types';
+import { Pagination } from './ui/Pagination';
+import { ConfirmDialog } from './ui/ConfirmDialog';
+
+const PAGE_SIZE = 9;
 
 const inputCls =
   'mt-1.5 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-indigo-400';
@@ -15,6 +19,12 @@ export default function Units() {
   const [searchParams] = useSearchParams();
   const initialProperty = searchParams.get('property') ?? '';
   const [filter, setFilter] = useState(initialProperty);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sort, setSort] = useState<'number' | 'rentAsc' | 'rentDesc'>('number');
+  const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<Unit | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Unit | null>(null);
   const [propertyId, setPropertyId] = useState('');
@@ -57,6 +67,31 @@ export default function Units() {
     }
   }, [props.loading, props.data, searchParams, initialProperty, showModal]);
 
+  // Hooks must run before any early return: while loading, data is just [].
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let rows = filter ? data.filter((u) => u.property_id === filter) : [...data];
+    if (statusFilter) rows = rows.filter((u) => u.status === statusFilter);
+    if (q) {
+      rows = rows.filter((u) =>
+        [u.unit_number, u.unit_type ?? '', u.phase ?? '', u.block ?? '', u.lot ?? '']
+          .join(' ')
+          .toLowerCase()
+          .includes(q),
+      );
+    }
+    rows.sort((a, b) => {
+      if (sort === 'rentAsc') return Number(a.rent) - Number(b.rent);
+      if (sort === 'rentDesc') return Number(b.rent) - Number(a.rent);
+      return a.unit_number.localeCompare(b.unit_number);
+    });
+    return rows;
+  }, [data, filter, search, statusFilter, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
   if (loading || props.loading) return <p className="text-[var(--text-secondary)]">Loading units…</p>;
   if (error || props.error)
     return (
@@ -65,7 +100,6 @@ export default function Units() {
       </p>
     );
 
-  const filtered = filter ? data.filter((u) => u.property_id === filter) : data;
   const propName = (id: string) => props.data.find((p) => p.id === id)?.name ?? '—';
 
   const rentNum = rent.trim() === '' ? null : Number(rent);
@@ -151,11 +185,14 @@ export default function Units() {
     setSaving(false);
   };
 
-  const onDelete = async (id: string, label: string) => {
-    if (!confirm(`Delete unit ${label}? Payments for it will be deleted.`)) return;
-    const { error: err } = await supabase.from('units').delete().eq('id', id);
+  const onDelete = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    const { error: err } = await supabase.from('units').delete().eq('id', deleteTarget.id);
     if (err) setFormError(err.message);
     else reload();
+    setDeleting(false);
+    setDeleteTarget(null);
   };
 
   const toggle = async (u: Unit) => {
@@ -190,15 +227,37 @@ export default function Units() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter by property" className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)]">
-          <option value="">All properties</option>
-          {props.data.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <select value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1); }} aria-label="Filter by property" className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)]">
+            <option value="">All properties</option>
+            {props.data.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search units…"
+            aria-label="Search units"
+            className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-indigo-400 sm:w-44"
+          />
+          <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} aria-label="Filter by status" className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)]">
+            <option value="">All statuses</option>
+            <option value="vacant">Vacant</option>
+            <option value="occupied">Occupied</option>
+          </select>
+          <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort units" className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)]">
+            <option value="number">Sort: Number</option>
+            <option value="rentAsc">Sort: Rent ↑</option>
+            <option value="rentDesc">Sort: Rent ↓</option>
+          </select>
+        </div>
         <button onClick={openAdd} className="rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:brightness-110">
           Add Unit
         </button>
@@ -295,10 +354,13 @@ export default function Units() {
         </div>
       )}
       {filtered.length === 0 ? (
-        <p className="text-sm text-[var(--text-secondary)]">No units yet — pick a property and add one.</p>
+        <p className="text-sm text-[var(--text-secondary)]">
+          {search || statusFilter ? 'No units match your filters.' : 'No units yet — pick a property and add one.'}
+        </p>
       ) : (
+        <>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((u, i) => (
+          {pageRows.map((u, i) => (
             <article key={u.id} className="flex flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] shadow-[var(--shadow-sm)] transition-shadow hover:shadow-[var(--shadow-md)]">
               <div aria-hidden className={`h-2 ${accents[i % accents.length].bar}`} />
               <div className="flex flex-1 flex-col p-5">
@@ -327,7 +389,7 @@ export default function Units() {
                         <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                       </svg>
                     </button>
-                    <button onClick={() => onDelete(u.id, u.unit_number)} className="rounded-lg border border-[var(--border-color)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]">
+                    <button onClick={() => setDeleteTarget(u)} aria-label={`Delete ${u.unit_number}`} className="rounded-lg border border-[var(--border-color)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]">
                       Delete
                     </button>
                   </div>
@@ -336,7 +398,18 @@ export default function Units() {
             </article>
           ))}
         </div>
+        <Pagination page={safePage} totalPages={totalPages} total={filtered.length} onPageChange={setPage} />
+        </>
       )}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete unit?"
+        message={deleteTarget ? `Unit ${deleteTarget.unit_number} will be deleted. Payments for it will be deleted.` : ''}
+        confirmLabel={deleting ? 'Deleting…' : 'Delete'}
+        danger
+        onConfirm={onDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

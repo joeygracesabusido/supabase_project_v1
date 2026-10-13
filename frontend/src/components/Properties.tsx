@@ -1,8 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useProperties, useUnits } from '../lib/useDashboard';
 import type { Property } from '../lib/types';
+import { Pagination } from './ui/Pagination';
+import { ConfirmDialog } from './ui/ConfirmDialog';
+
+const PAGE_SIZE = 9;
 
 const BUILDING_TYPES = ['residential', 'commercial', 'mixed', 'industrial', 'condominium', 'townhouse'];
 const thisYear = new Date().getFullYear();
@@ -26,6 +30,11 @@ export default function Properties() {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<'name' | 'units'>('name');
+  const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!showModal) return;
@@ -35,6 +44,31 @@ export default function Properties() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [showModal]);
+
+  // Hooks must run before any early return: while loading, data is just [].
+  // el-property workflow: client-side search + sort + pagination.
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const count = (propertyId: string) =>
+      units.data.filter((u) => u.property_id === propertyId).length;
+    const rows = q
+      ? data.filter((p) =>
+          [p.name, p.address, p.city ?? '', p.state ?? '', p.building_type ?? '']
+            .join(' ')
+            .toLowerCase()
+            .includes(q),
+        )
+      : [...data];
+    rows.sort((a, b) => {
+      if (sort === 'units') return count(b.id) - count(a.id);
+      return a.name.localeCompare(b.name);
+    });
+    return rows;
+  }, [data, search, sort, units.data]);
+
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = visible.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   if (loading) return <p className="text-[var(--text-secondary)]">Loading properties…</p>;
   if (error)
@@ -114,11 +148,14 @@ export default function Properties() {
     setSaving(false);
   };
 
-  const onDelete = async (id: string) => {
-    if (!confirm('Delete this property? Units will be deleted.')) return;
-    const { error: err } = await supabase.from('properties').delete().eq('id', id);
+  const onDelete = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    const { error: err } = await supabase.from('properties').delete().eq('id', deleteTarget.id);
     if (err) setFormError(err.message);
     else reload();
+    setDeleting(false);
+    setDeleteTarget(null);
   };
 
   const unitCount = (propertyId: string) =>
@@ -137,11 +174,37 @@ export default function Properties() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search properties…"
+            aria-label="Search properties"
+            className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-indigo-400 sm:w-56"
+          />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as typeof sort)}
+            aria-label="Sort properties"
+            className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)]"
+          >
+            <option value="name">Sort: Name</option>
+            <option value="units">Sort: Most units</option>
+          </select>
+        </div>
         <button onClick={openAdd} className="rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:brightness-110">
           Add Property
         </button>
       </div>
+      {formError && !showModal && (
+        <p role="alert" className="rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-200">
+          {formError}
+        </p>
+      )}
       {showModal && (
         <div onClick={() => setShowModal(false)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div role="dialog" aria-modal="true" aria-label={editing ? 'Edit property' : 'Add property'} onClick={(e) => e.stopPropagation()} className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 shadow-[var(--shadow-lg)]">
@@ -215,11 +278,14 @@ export default function Properties() {
           </div>
         </div>
       )}
-      {data.length === 0 ? (
-        <p className="text-sm text-[var(--text-secondary)]">No properties yet — add one.</p>
+      {visible.length === 0 ? (
+        <p className="text-sm text-[var(--text-secondary)]">
+          {search ? 'No properties match your search.' : 'No properties yet — add one.'}
+        </p>
       ) : (
+        <>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data.map((p, i) => (
+          {pageRows.map((p, i) => (
             <article key={p.id} className="flex flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] shadow-[var(--shadow-sm)] transition-shadow hover:shadow-[var(--shadow-md)]">
               <div aria-hidden className={`h-2 ${accents[i % accents.length].bar}`} />
               <div className="flex flex-1 flex-col p-5">
@@ -243,7 +309,7 @@ export default function Properties() {
                       <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                     </svg>
                   </button>
-                  <button onClick={() => onDelete(p.id)} className="rounded-lg border border-[var(--border-color)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]">
+                  <button onClick={() => setDeleteTarget(p)} aria-label={`Delete ${p.name}`} className="rounded-lg border border-[var(--border-color)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]">
                     Delete
                   </button>
                 </div>
@@ -252,7 +318,18 @@ export default function Properties() {
             </article>
           ))}
         </div>
+        <Pagination page={safePage} totalPages={totalPages} total={visible.length} onPageChange={setPage} />
+        </>
       )}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete property?"
+        message={deleteTarget ? `${deleteTarget.name} and all of its units will be deleted.` : ''}
+        confirmLabel={deleting ? 'Deleting…' : 'Delete'}
+        danger
+        onConfirm={onDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
