@@ -43,6 +43,14 @@ export default function Properties() {
   const unitCount = (propertyId: string) =>
     units.data.filter((u) => u.property_id === propertyId).length;
 
+  const accents = [
+    { bar: 'bg-gradient-to-r from-indigo-500 to-fuchsia-500', badge: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-200' },
+    { bar: 'bg-gradient-to-r from-sky-500 to-cyan-400', badge: 'bg-sky-500/10 text-sky-700 dark:text-sky-200' },
+    { bar: 'bg-gradient-to-r from-emerald-500 to-teal-400', badge: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-200' },
+    { bar: 'bg-gradient-to-r from-amber-500 to-orange-400', badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-200' },
+    { bar: 'bg-gradient-to-r from-rose-500 to-pink-400', badge: 'bg-rose-500/10 text-rose-700 dark:text-rose-200' },
+  ];
+
   return (
     <div className="space-y-4">
       <form onSubmit={onAdd} className="flex flex-col gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-sm)] sm:flex-row">
@@ -57,17 +65,20 @@ export default function Properties() {
         <p className="text-sm text-[var(--text-secondary)]">No properties yet — add one.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data.map((p) => (
-            <article key={p.id} className="flex flex-col rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5 shadow-[var(--shadow-sm)] transition-shadow hover:shadow-[var(--shadow-md)]">
+          {data.map((p, i) => (
+            <article key={p.id} className="flex flex-col overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] shadow-[var(--shadow-sm)] transition-shadow hover:shadow-[var(--shadow-md)]">
+              <div aria-hidden className={`h-2 ${accents[i % accents.length].bar}`} />
+              <div className="flex flex-1 flex-col p-5">
               <h2 className="text-base font-semibold text-[var(--text-primary)]">{p.name}</h2>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">{p.address}</p>
               <div className="mt-4 flex items-center justify-between border-t border-[var(--border-light)] pt-3">
-                <span className="rounded-full bg-[var(--bg-badge)] px-2.5 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${accents[i % accents.length].badge}`}>
                   {unitCount(p.id)} {unitCount(p.id) === 1 ? 'unit' : 'units'}
                 </span>
                 <button onClick={() => onDelete(p.id)} className="rounded-lg border border-[var(--border-color)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]">
                   Delete
                 </button>
+              </div>
               </div>
             </article>
           ))}
