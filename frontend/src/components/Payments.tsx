@@ -22,7 +22,7 @@ export default function Payments() {
       </p>
     );
 
-  const valid = tenantId !== '' && unitId !== '' && Number(amount) > 0 && !saving;
+  const valid = tenantId !== '' && unitId !== '' && Number(amount) > 0 && month !== '' && !saving;
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
