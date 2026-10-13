@@ -1,0 +1,5 @@
+fastapi
+strawberry-graphql[fastapi]
+supabase
+uvicorn
+python-dotenv
