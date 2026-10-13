@@ -1,14 +1,24 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { useProperties, useUnits } from '../lib/useDashboard';
 
 export default function Properties() {
   const { data, loading, error, reload } = useProperties();
   const units = useUnits();
+  const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    if (!showModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowModal(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showModal]);
 
   if (loading) return <p className="text-[var(--text-secondary)]">Loading properties…</p>;
   if (error)
@@ -28,6 +38,7 @@ export default function Properties() {
     else {
       setName('');
       setAddress('');
+      setShowModal(false);
       reload();
     }
     setSaving(false);
@@ -53,14 +64,37 @@ export default function Properties() {
 
   return (
     <div className="space-y-4">
-      <form onSubmit={onAdd} className="flex flex-col gap-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 shadow-[var(--shadow-sm)] sm:flex-row">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Property name" aria-label="Property name" className="flex-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-indigo-400" />
-        <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address" aria-label="Address" className="flex-1 rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-indigo-400" />
-        <button disabled={!name.trim() || !address.trim() || saving} className="rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-          {saving ? 'Saving…' : 'Add'}
+      <div className="flex justify-end">
+        <button onClick={() => { setFormError(''); setShowModal(true); }} className="rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:brightness-110">
+          Add Property
         </button>
-      </form>
-      {formError && <p role="alert" className="rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-200">{formError}</p>}
+      </div>
+      {showModal && (
+        <div onClick={() => setShowModal(false)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div role="dialog" aria-modal="true" aria-label="Add property" onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 shadow-[var(--shadow-lg)]">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Add Property</h2>
+            <form onSubmit={onAdd} className="mt-4 space-y-3">
+              <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                Name
+                <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Sunset Apartments" aria-label="Property name" className="mt-1.5 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-indigo-400" />
+              </label>
+              <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                Address
+                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" aria-label="Address" className="mt-1.5 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-input)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-indigo-400" />
+              </label>
+              {formError && <p role="alert" className="rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-200">{formError}</p>}
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-[var(--border-color)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-muted)]">
+                  Cancel
+                </button>
+                <button disabled={!name.trim() || !address.trim() || saving} className="rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                  {saving ? 'Saving…' : 'Add'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {data.length === 0 ? (
         <p className="text-sm text-[var(--text-secondary)]">No properties yet — add one.</p>
       ) : (
