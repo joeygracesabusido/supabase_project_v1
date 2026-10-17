@@ -1,4 +1,4 @@
-import { statusColor } from '../../lib/format';
+import { statusColor } from "../../lib/utils";
 
 interface BadgeProps {
   status: string;
@@ -8,9 +8,9 @@ interface BadgeProps {
 export function Badge({ status, label }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${statusColor(status)}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${statusColor(status)}`}
     >
-      {label ?? status.replace(/_/g, ' ')}
+      {label ?? status.replace(/_/g, " ")}
     </span>
   );
 }

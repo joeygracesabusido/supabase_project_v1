@@ -1,7 +1,7 @@
-import { Component } from 'react';
-import type { ErrorInfo, ReactNode } from 'react';
+import { Component } from "react";
+import type { ErrorInfo, ReactNode } from "react";
+import { AlertTriangle } from "lucide-react";
 
-// Ported from el-property ErrorBoundary; icon inlined (no lucide-react here).
 interface Props {
   children: ReactNode;
 }
@@ -22,26 +22,24 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('ErrorBoundary caught:', error, info);
+    console.error("ErrorBoundary caught:", error, info);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-[var(--bg-page)] p-6">
-          <div className="max-w-md rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-8 text-center shadow-[var(--shadow-lg)]">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mx-auto mb-4 text-red-500">
-              <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-              <path d="M12 9v4" />
-              <path d="M12 17h.01" />
-            </svg>
-            <h2 className="mb-2 text-lg font-semibold text-[var(--text-primary)]">Something went wrong</h2>
-            <p className="mb-6 text-sm text-[var(--text-secondary)]">
-              {this.state.error?.message || 'An unexpected error occurred.'}
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-8 max-w-md text-center">
+            <AlertTriangle size={40} className="text-red-500 mx-auto mb-4" />
+            <h2 className="text-lg font-semibold text-slate-800 mb-2">
+              Something went wrong
+            </h2>
+            <p className="text-sm text-slate-500 mb-6">
+              {this.state.error?.message || "An unexpected error occurred."}
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="rounded-lg bg-[#003580] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#00224f]"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
             >
               Reload page
             </button>

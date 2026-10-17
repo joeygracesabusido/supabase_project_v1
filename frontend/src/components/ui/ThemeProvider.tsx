@@ -14,25 +14,16 @@ const ThemeContext = createContext<ThemeContextValue>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    try {
-      const stored = localStorage.getItem("theme") as Theme | null;
-      if (stored) return stored;
-      if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
-        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      }
-    } catch {
-      /* ignore storage/media errors, fall through to light */
-    }
-    return "light";
+    const stored = localStorage.getItem("theme") as Theme | null;
+    if (stored) return stored;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
   });
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    try {
-      localStorage.setItem("theme", theme);
-    } catch {
-      /* private mode etc. — theme still applies for this session */
-    }
+    localStorage.setItem("theme", theme);
   }, [theme]);
 
   function toggle() {
